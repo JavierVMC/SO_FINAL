@@ -1,13 +1,8 @@
-all: simulador
+simulador: simulador.o
+	gcc simulador.o -o simulador
 
-simulador: myFunctions.o simulador.o
-	gcc simulador.o myFunctions.o -o simulador -lrt
-
-simulador.o: simulador-2.c
-	gcc -c simulador-2.c
-
-myFunctions.o: myFunctions.c myFunctions.h
-	gcc -c myFunctions.c
+simulador.o: simulador.c
+	gcc -c simulador.c
 
 .PHONY: clean
 
