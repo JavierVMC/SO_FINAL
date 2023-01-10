@@ -1,4 +1,3 @@
-// C program rocket simulation
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
@@ -6,10 +5,13 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 #include <pthread.h>
-#include <errno.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
 
+#include "myFunctions.h"
 
 #define SHMSZ 4
 #define NUM 3
@@ -17,6 +19,10 @@
 
 #define SHM_ADDR_G 266
 #define NUMG 2
+
+#define BUFFER_SIZE 255
+#define PORT_NO 9999
+#define SERVER_IP_ADDR "127.0.0.1"
 
 // Puntos criticos
 #define ALTURA_SEGURA 5       // altura en metros
@@ -41,8 +47,8 @@ pthread_t tid_p1;
 pthread_t tid_p2;
 pthread_t tid_p3;
 pthread_t tid_p4;
+pthread_t tid_cdc;
 
-int msleep(long msec);
 int inicializar_memoria_compartida(void);
 void sig_handlerINT(int signo);
 void *descender(void *param);
@@ -51,6 +57,7 @@ void *propulsor1(void *param);
 void *propulsor2(void *param);
 void *propulsor3(void *param);
 void *propulsor4(void *param);
+void *centro_de_control(void *param);
 
 int main(int argc, char *argv[])
 {
@@ -76,6 +83,7 @@ int main(int argc, char *argv[])
   *alarma = 0;
 
   pthread_attr_init(&attr);
+  pthread_create(&tid_cdc, NULL, centro_de_control, NULL);
   pthread_create(&tid, &attr, descender, NULL);
   pthread_create(&tid_p0, NULL, propulsor0, NULL);
   pthread_create(&tid_p1, NULL, propulsor1, NULL);
@@ -93,6 +101,11 @@ int main(int argc, char *argv[])
     else if (*alarma == ABORTAR_ALUNIZAJE && *nivel < NIVEL_MINIMO)
     {
       printf("Abortando alunisaje!\n");
+      exit(0);
+    }
+    else if (*alarma == ABORTAR_ALUNIZAJE)
+    {
+      printf("Abortando alunisaje desde el centro de mando!\n");
       exit(0);
     }
     printf("Valor actual distancia %d, combustible %d, giro1 %.2f, giro2 %.2f\n", *distancia, *nivel, *giro1, *giro2);
@@ -137,10 +150,13 @@ void *propulsor0(void *param)
         *alarma = 0;
         *distancia = *distancia + 30;
         *nivel = *nivel - 5;
-      }else if(*alarma == ABORTAR_ALUNIZAJE && *nivel < NIVEL_MINIMO){
+      }
+      else if (*alarma == ABORTAR_ALUNIZAJE && *nivel < NIVEL_MINIMO)
+      {
         pthread_exit(0);
       }
-      if(*distancia == 1){
+      if (*distancia == 1)
+      {
         printf("Apagando propulsor principal\n");
         pthread_exit(0);
       }
@@ -224,27 +240,49 @@ void *propulsor4(void *param)
   }
 }
 
-/* Sleep for the requested number of milliseconds. */
-int msleep(long msec)
+void *centro_de_control(void *param)
 {
-    struct timespec ts;
-    int res;
+  int sockfd, n;
+  struct sockaddr_in serv_addr;
+  struct hostent *server;
+  char buffer[BUFFER_SIZE];
 
-    if (msec < 0)
+  sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+  if (sockfd < 0)
+  {
+    error("Error opening socket.");
+  }
+
+  server = gethostbyname(SERVER_IP_ADDR);
+  if (server == NULL)
+  {
+    fprintf(stderr, "Error, no such host.");
+  }
+
+  bzero((char *)&serv_addr, sizeof(serv_addr));
+  serv_addr.sin_family = AF_INET;
+  bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+  serv_addr.sin_port = htons(PORT_NO);
+  
+  if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
+  {
+    error("Connection failed.");
+  }
+
+  while (1)
+  {
+    bzero(buffer, BUFFER_SIZE);
+    n = read(sockfd, buffer, BUFFER_SIZE);
+    if (n < 0)
     {
-        errno = EINVAL;
-        return -1;
+      error("Error on reading.");
     }
-
-    ts.tv_sec = msec / 1000;
-    ts.tv_nsec = (msec % 1000) * 1000000;
-
-    do
-    {
-        res = nanosleep(&ts, &ts);
-    } while (res && errno == EINTR);
-
-    return res;
+    printf("Centro de control: %s", buffer);
+    *alarma = atoi(buffer);
+  }
+  
+  close(sockfd);
 }
 
 int inicializar_memoria_compartida(void)

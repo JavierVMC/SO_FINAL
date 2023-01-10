@@ -9,6 +9,12 @@
 #define BUFFER_SIZE 255
 #define PORT_NO 9999
 
+// Alarmas
+#define FALLO_GENERAL 101
+#define FALLO_MOTOR_PRINCIPAL 102
+#define FALLO_MOTOR_ORIENTACION 103
+#define ABORTAR_ALUNIZAJE 104
+
 void error(const char *msg)
 {
     perror(msg);
@@ -52,26 +58,28 @@ int main(int argc, char *argv[])
 
     while (1)
     {
-        bzero(buffer, BUFFER_SIZE);
-        n = read(newsockfd, buffer, BUFFER_SIZE);
-        if (n < 0)
+        while (1)
         {
-            error("Error on reading.");
+            bzero(buffer, BUFFER_SIZE);
+            fgets(buffer, BUFFER_SIZE, stdin);
+            if (FALLO_GENERAL == atoi(buffer)
+             || FALLO_MOTOR_ORIENTACION == atoi(buffer)
+             || FALLO_MOTOR_PRINCIPAL == atoi(buffer)
+             || ABORTAR_ALUNIZAJE == atoi(buffer))
+            {
+                break;
+            }
+            if (strncmp("quit", buffer, 4) == 0)
+            {
+                break;
+            }
+            printf("Comando no reconocido.\n");
         }
-        printf("Centro de control: %s", buffer);
-        bzero(buffer, BUFFER_SIZE);
-        fgets(buffer, BUFFER_SIZE, stdin);
 
         n = write(newsockfd, buffer, strlen(buffer));
         if (n < 0)
         {
             error("Error on writing.");
-        }
-
-        int i = strncmp("quit", buffer, 4);
-        if (i == 0)
-        {
-            break;
         }
     }
     close(newsockfd);
