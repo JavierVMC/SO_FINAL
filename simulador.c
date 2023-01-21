@@ -100,14 +100,12 @@ int main(int argc, char *argv[])
       break;
     }
     if(*alarma == FALLO_MOTOR_ORIENTACION && p1_s == 0 && p2_s == 0 && p3_s == 0 && p4_s == 0){
-      *alarma = 0;
       pthread_cond_signal(&cond1);
       pthread_cond_signal(&cond2);
       pthread_cond_signal(&cond3);
       pthread_cond_signal(&cond4);
     }
     if(*alarma == FALLO_GENERAL && p0_s == 0 && p1_s == 0 && p2_s == 0 && p3_s == 0 && p4_s == 0){
-      *alarma = 0;
       pthread_cond_signal(&cond0);
       pthread_cond_signal(&cond1);
       pthread_cond_signal(&cond2);
@@ -192,6 +190,7 @@ void *propulsor0(void *param)
       p0_s = 0;
       pthread_mutex_lock(&mutex);
       pthread_cond_wait(&cond0, &mutex);
+      *alarma = 0;
       pthread_mutex_unlock(&mutex);
       msleep(intervalo * 2);
       printf("Propulsor principal listo.\n");
@@ -248,6 +247,7 @@ void *propulsor1(void *param)
       p1_s = 0;
       pthread_mutex_lock(&mutex);
       pthread_cond_wait(&cond1, &mutex);
+      *alarma = 0;
       pthread_mutex_unlock(&mutex);
       msleep(intervalo * 2);
       printf("Propulsor 1 listo.\n");
@@ -284,6 +284,7 @@ void *propulsor3(void *param)
       p3_s = 0;
       pthread_mutex_lock(&mutex);
       pthread_cond_wait(&cond3, &mutex);
+      *alarma = 0;
       pthread_mutex_unlock(&mutex);
       msleep(intervalo * 2);
       printf("Propulsor 3 listo.\n");
@@ -320,6 +321,7 @@ void *propulsor2(void *param)
       p2_s = 0;
       pthread_mutex_lock(&mutex);
       pthread_cond_wait(&cond2, &mutex);
+      *alarma = 0;
       pthread_mutex_unlock(&mutex);
       msleep(intervalo * 2);
       printf("Propulsor 2 listo.\n");
@@ -356,6 +358,7 @@ void *propulsor4(void *param)
       p4_s = 0;
       pthread_mutex_lock(&mutex);
       pthread_cond_wait(&cond4, &mutex);
+      *alarma = 0;
       pthread_mutex_unlock(&mutex);
       msleep(intervalo * 2);
       printf("Propulsor 4 listo.\n");
